@@ -1,15 +1,24 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using StudentInformation.Models;
+using Website_StudentInformation.Models;
 
 namespace StudentInformation.Controllers
 {
     public class StudentController : Controller
     {
-        private static List<Student> studentList = new List<Student>();
-        [HttpGet]
-        public IActionResult Index()
+        private readonly STDBContext _context;
+
+        public StudentController(STDBContext context)
         {
-            return View(studentList);
+            _context = context;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var students = await _context.Students.ToListAsync();
+            return View(students);
         }
 
         [HttpGet]
@@ -19,76 +28,64 @@ namespace StudentInformation.Controllers
         }
 
         [HttpPost]
-        public IActionResult RegisterStudent(Student student)
+        public async Task<IActionResult>RegisterStudent(Student students)
         {
-            if (student.FullName == "")
-            {
-                ModelState.AddModelError("Name", "Name cannot be empty.");
-            }
-
             if (ModelState.IsValid)
             {
-                student.StudentID = studentList.Count + 1;
-                studentList.Add(student);
+                int id = _context.Students.Count() + 1;
+                students.StudentID = id; // Assign a new ID
+                _context.Students.Add(students);
+                await _context.SaveChangesAsync();
                 return RedirectToAction("Index");
             }
-            return View();
+
+            return View(students);
         }
 
         [HttpGet]
-        public IActionResult Edit(int id)
+        public async Task<IActionResult> Edit(int id)
         {
-            var student = studentList.FirstOrDefault(s => s.StudentID == id);
+            var student = await _context.Students.FindAsync(id);
             if (student == null)
                 return NotFound();
             return View(student);
         }
 
         [HttpPost]
-        public IActionResult Edit(int id, Student student)
+        public async Task<IActionResult> Edit(int id, Student student)
         {
             if (id != student.StudentID)
                 return NotFound();
 
             if (ModelState.IsValid)
             {
-                var existingStudent = studentList.FirstOrDefault(s => s.StudentID == id);
-                if (existingStudent == null)
-                    return NotFound();
-
-                // Update student details
-                existingStudent.FullName = student.FullName;
-                existingStudent.DateOfBirth = student.DateOfBirth;
-                existingStudent.Gender = student.Gender;
-                existingStudent.Address = student.Address;
-                existingStudent.ContactNumber = student.ContactNumber;
-
+                _context.Entry(student).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
                 return RedirectToAction("Index");
             }
 
             return View(student);
         }
 
-        public IActionResult Delete(int id)
+        [HttpGet]
+        public async Task<IActionResult> Delete(int id)
         {
-            var pet = studentList.FirstOrDefault(s => s.StudentID == id);
-            if (pet == null)
+            var student = await _context.Students.FindAsync(id);
+            if (student == null)
                 return NotFound();
-            return View(pet);
+            return View(student);
         }
 
         [HttpPost, ActionName("Delete")]
-        public IActionResult DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var student = studentList.FirstOrDefault(s => s.StudentID == id);
-            if
-    (student != null)
+            var student = await _context.Students.FindAsync(id);
+            if (student != null)
             {
-                studentList.Remove(student);
-
+                _context.Students.Remove(student);
+                await _context.SaveChangesAsync();
             }
             return RedirectToAction("Index");
-
         }
     }
 }
